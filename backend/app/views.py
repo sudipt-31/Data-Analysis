@@ -24,7 +24,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from io import StringIO
 from django.http import HttpResponse
-from django.http import FileResponse
+
 
 logger = logging.getLogger(__name__)
 
