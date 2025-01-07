@@ -95,5 +95,4 @@ tzdata==2024.2
 uritemplate==4.1.1
 urllib3==2.3.0
 whitenoise==6.8.2
-xlrd==2.0.1
 yarl==1.18.3

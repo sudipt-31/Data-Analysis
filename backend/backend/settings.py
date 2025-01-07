@@ -146,7 +146,7 @@ ROOT_URLCONF = 'backend.urls'
 
 WSGI_APPLICATION = 'backend.wsgi.application'
 
-GOOGLE_API_KEY=os.getenv("AIzaSyC5Dqjx0DLbkRXH9YWqWZ1SPTK0w0C4oFY")
+GOOGLE_API_KEY=os.getenv("AIzaSyDEO09Xsqre5_b3wM5tSk5nagRGF5ScJAM")
 
 DATABASE_URL = f"postgresql://{os.getenv('DB_USER', 'postgres')}:{os.getenv('DB_PASSWORD', 'root')}@{os.getenv('DB_HOST', 'localhost')}:{os.getenv('DB_PORT', '5432')}/{os.getenv('DB_NAME', 'data_analysis')}"
 

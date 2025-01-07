@@ -22,40 +22,45 @@ from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 import logging
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
+from io import StringIO
+from django.http import HttpResponse
+from django.http import FileResponse
+
 logger = logging.getLogger(__name__)
 
 
 
 
 def get_api_key():
-    """Modified to use Django settings instead of Streamlit secrets"""
+    """Get Google API key from Django settings or environment"""
     try:
-        return settings.GOOGLE_API_KEY
+        # First try Django settings
+        api_key = settings.GOOGLE_API_KEY
+        if not api_key:
+            raise AttributeError
+        return api_key
     except AttributeError:
+        # Then try environment variable
         load_dotenv()
         api_key = os.getenv("GOOGLE_API_KEY")
-        if api_key:
-            return api_key
-        else:
-            raise Exception("No API key found. Please set GOOGLE_API_KEY in settings.py or .env file")
-
-
+        if not api_key:
+            raise Exception("Google API key not found. Please set GOOGLE_API_KEY in settings.py or .env file")
+        return api_key
 
 def setup_llm():
     """Initialize Gemini and chain with dynamic schema"""
     try:
+        api_key = get_api_key()
         llm = ChatGoogleGenerativeAI(
             model="gemini-1.5-flash",
             temperature=0,
-            google_api_key=get_api_key(),
+            google_api_key=api_key,
             convert_system_message_to_human=True
         )
         prompt = get_prompt_template()
         return prompt, llm
     except Exception as e:
-        # Raise exception instead of using Streamlit error
         raise Exception(f"Error setting up LLM: {str(e)}")
-
 
 def get_prompt_template():
     """Get the prompt template with dynamic schema"""
@@ -102,7 +107,7 @@ def generate_result_explanation(results_df, user_question, llm):
         # Basic dataset info
         row_count = len(results_df)
         if row_count == 0:
-            return "### 📊 No Results Found\nThe query returned no data. Please try modifying your search criteria."
+            return "###No Results Found\nThe query returned no data. Please try modifying your search criteria."
 
         # Analyze numeric and categorical columns
         insights = []
@@ -148,11 +153,10 @@ def generate_result_explanation(results_df, user_question, llm):
         explanation = response.content if hasattr(response, 'content') else str(response)
         
         # Format the final output
-        formatted_explanation = f"""### 📊 Analysis Results
+        formatted_explanation = f"""
 
 {explanation}
 
-**Quick Stats:**
 - Records analyzed: {row_count:,}
 - Columns analyzed: {len(results_df.columns)}"""
         
@@ -270,25 +274,55 @@ def restructure_excel_sheet(uploaded_file):
 
 def generate_and_execute_query(user_question, schema_str, llm, db_uri):
     """
-    Generate and execute SQL query for PostgreSQL with improved error handling and debugging
+    Generate and execute SQL query for PostgreSQL with improved case-sensitive column handling
     """
     try:
-        # Generate initial query
+        # Get actual column names and their case from the database
+        engine = create_engine(db_uri)
+        with engine.connect() as connection:
+            # Get all table names first
+            tables_query = """
+                SELECT table_name 
+                FROM information_schema.tables 
+                WHERE table_schema = 'public'
+            """
+            tables_result = connection.execute(text(tables_query))
+            tables = [row[0] for row in tables_result]
+            
+            # Get column information for each table
+            columns_info = {}
+            for table in tables:
+                columns_query = f"""
+                    SELECT column_name 
+                    FROM information_schema.columns 
+                    WHERE table_schema = 'public' 
+                    AND table_name = '{table}'
+                """
+                columns_result = connection.execute(text(columns_query))
+                columns_info[table] = [row[0] for row in columns_result]
+
+        # Add column case information to the schema string
+        schema_str += "\nActual column names and their case:\n"
+        for table, columns in columns_info.items():
+            schema_str += f"\nTable '{table}':\n"
+            for col in columns:
+                schema_str += f"- {col}\n"
+
+        # Generate initial query with explicit column case handling
         response = llm.invoke(f"""
-        Based on this schema, generate a PostgreSQL-compatible query to answer the question.
-        Double quote column names with spaces. Use CAST for type conversions if needed.
+        Generate a PostgreSQL-compatible query following these strict rules:
+        1. Use EXACT column names as shown in the schema (case-sensitive)
+        2. Always quote column names with double quotes
+        3. For string comparisons, use ILIKE for case-insensitive matching
+        4. Cast numeric values explicitly using CAST with correct column name case
+        5. Use table name prefix for all columns
         
-        Schema:
+        Schema with exact column names:
         {schema_str}
         
         Question: {user_question}
         
-        Rules:
-        1. Only use tables and columns that exist in the schema
-        2. Use ILIKE with wildcards for case-insensitive text searches (e.g., WHERE column ILIKE '%value%')
-        3. Double quote column names containing spaces
-        4. Use appropriate JOINs if needed
-        5. Return the bare SQL query without any markdown or comments
+        Return only the SQL query without any explanation or markdown formatting.
         """)
         
         sql_query = response.content if hasattr(response, 'content') else str(response)
@@ -299,58 +333,61 @@ def generate_and_execute_query(user_question, schema_str, llm, db_uri):
             sql_query = sql_query[6:-3]
         sql_query = sql_query.strip()
         
-        # Execute query with better error handling
-        engine = create_engine(db_uri)
+        # Execute query
         try:
-            # Test query validity first
             with engine.connect() as connection:
-        # Convert the query to SQLAlchemy text object
+                # Test query first
                 test_query = text("EXPLAIN " + sql_query)
                 connection.execute(test_query)
-            
-            # If valid, execute and get results
-            results = pd.read_sql_query(text(sql_query), engine)
-            
-            if results.empty:
-                # Try to debug the query
-                debug_response = llm.invoke(f"""
-                The following query returned no results. Please modify it to be more permissive:
-                {sql_query}
                 
-                Schema:
-                {schema_str}
+                # Execute actual query
+                query = text(sql_query)
+                result = connection.execute(query)
+                results = pd.DataFrame(result.fetchall(), columns=result.keys())
                 
-                Original question: {user_question}
+                if results.empty:
+                    # Try to debug with exact column names
+                    debug_response = llm.invoke(f"""
+                    The query returned no results. Modify it using exact column names:
+                    Original query: {sql_query}
+                    
+                    Schema with exact column names:
+                    {schema_str}
+                    
+                    Question: {user_question}
+                    
+                    Return only the fixed SQL query.
+                    """)
+                    
+                    modified_query = debug_response.content.strip()
+                    if modified_query.startswith('```sql'):
+                        modified_query = modified_query[6:-3].strip()
+                    
+                    # Try modified query
+                    query = text(modified_query)
+                    result = connection.execute(query)
+                    results = pd.DataFrame(result.fetchall(), columns=result.keys())
+                    
+                    if not results.empty:
+                        sql_query = modified_query
                 
-                Return only the modified query without any explanation.
-                """)
+                return {
+                    'success': True,
+                    'query': sql_query,
+                    'results': results
+                }
                 
-                modified_query = debug_response.content.strip()
-                if modified_query.startswith('```sql'):
-                    modified_query = modified_query[6:-3].strip()
-                
-                # Try the modified query
-                results = pd.read_sql_query(text(modified_query), engine)
-                if not results.empty:
-                    sql_query = modified_query  # Use the successful modified query
-            
-            return {
-                'success': True,
-                'query': sql_query,
-                'results': results
-            }
-            
         except Exception as e:
-            # If error occurs, try to fix the query
+            # Attempt to fix the query with correct column names
             fix_response = llm.invoke(f"""
-            This query failed with error: {str(e)}
+            Fix this query using exact column names from the schema.
+            Error: {str(e)}
             Original query: {sql_query}
             
-            Schema:
+            Schema with exact column names:
             {schema_str}
             
-            Fix the query to work with PostgreSQL and the given schema.
-            Return only the fixed query without any explanation.
+            Return only the fixed SQL query.
             """)
             
             fixed_query = fix_response.content.strip()
@@ -358,21 +395,26 @@ def generate_and_execute_query(user_question, schema_str, llm, db_uri):
                 fixed_query = fixed_query[6:-3].strip()
             
             # Try the fixed query
-            results = pd.read_sql_query(fixed_query, engine)
-            return {
-                'success': True,
-                'query': fixed_query,
-                'results': results
-            }
-            
-        finally:
-            engine.dispose()
+            with engine.connect() as connection:
+                query = text(fixed_query)
+                result = connection.execute(query)
+                results = pd.DataFrame(result.fetchall(), columns=result.keys())
+                
+                return {
+                    'success': True,
+                    'query': fixed_query,
+                    'results': results
+                }
             
     except Exception as e:
         return {
             'success': False,
             'error': str(e)
         }
+    finally:
+        if 'engine' in locals():
+            engine.dispose()
+
 
 
 def clear_database_tables(engine):
@@ -620,21 +662,25 @@ class SaveResultsAPIView(APIView):
                 return Response({
                     'error': 'No results to save'
                 }, status=status.HTTP_400_BAD_REQUEST)
-
+            
+            # Convert results to DataFrame
             results_df = pd.DataFrame(results_data)
-            os.makedirs('outputs', exist_ok=True)
-
+            
+            # Create a string buffer to store the CSV data
+            csv_buffer = StringIO()
+            results_df.to_csv(csv_buffer, index=False)
+            csv_buffer.seek(0)
+            
+            # Create the HTTP response with the CSV file
             filename = f'query_results_{pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")}.csv'
-            filepath = os.path.join('outputs', filename)
-            results_df.to_csv(filepath, index=False)
-
-            return Response({
-                'success': True,
-                'message': f'Results saved to {filepath}',
-                'filepath': filepath
-            })
-
+            response = HttpResponse(csv_buffer.getvalue(), content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            
+            return response
+            
         except Exception as e:
             return Response({
                 'error': f'Error saving results: {str(e)}'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+   
+       
