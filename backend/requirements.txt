@@ -1,25 +1,29 @@
 # Django and REST framework
-Django==4.2.10
-djangorestframework==3.14.0
+Django>=4.2.0,<5.0.0
+djangorestframework>=3.14.0
 
 # Database
-psycopg2-binary==2.9.9
-SQLAlchemy==2.0.27
+psycopg2-binary>=2.9.9
+SQLAlchemy>=2.0.0
 
 # AI/ML
-langchain==0.1.9
-langchain-google-generativeai==0.0.8
+langchain>=0.1.0
+langchain-google-generativeai>=0.0.6
+google-generativeai>=0.3.0
 
-# Data handling
-pandas==2.2.0
+# Data processing
+pandas>=2.0.0
 
 # Environment variables
-python-dotenv==1.0.1
+python-dotenv>=1.0.0
 
-# Additional utilities
-python-multipart==0.0.7
+# Azure specific
+gunicorn>=21.2.0
+whitenoise>=6.5.0  # for serving static files
+psycopg2>=2.9.9    # for PostgreSQL support
 
-# Production deployment
-gunicorn==21.2.0
-whitenoise==6.6.0
-django-cors-headers==4.3.1
+# Logging
+logging>=0.5.1.2
+
+# Other utilities
+python-venv>=3.0.0
