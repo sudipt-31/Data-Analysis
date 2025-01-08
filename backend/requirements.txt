@@ -1,25 +1,25 @@
 # Django and REST framework
-Django>=4.2.0
-djangorestframework>=3.14.0
+Django==4.2.10
+djangorestframework==3.14.0
 
 # Database
-psycopg2-binary>=2.9.6
-SQLAlchemy>=2.0.0
+psycopg2-binary==2.9.9
+SQLAlchemy==2.0.27
 
 # AI/ML
-langchain>=0.0.300
-langchain-google-generativeai>=0.0.5
+langchain==0.1.9
+langchain-google-generativeai==0.0.8
 
-# Pandas for data handling
-pandas>=2.0.0
+# Data handling
+pandas==2.2.0
 
 # Environment variables
-python-dotenv>=1.0.0
+python-dotenv==1.0.1
 
 # Additional utilities
-python-multipart>=0.0.6
+python-multipart==0.0.7
 
-# Optional but recommended
-gunicorn>=21.2.0  # For production deployment
-whitenoise>=6.5.0  # For serving static files
-django-cors-headers>=4.2.0  # If you need CORS support
+# Production deployment
+gunicorn==21.2.0
+whitenoise==6.6.0
+django-cors-headers==4.3.1
