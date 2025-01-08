@@ -8,7 +8,7 @@ SQLAlchemy>=2.0.0
 
 # AI/ML
 langchain>=0.1.0
-langchain-google-generativeai>=0.0.6
+google-cloud-aiplatform>=1.36.0
 google-generativeai>=0.3.0
 
 # Data processing
@@ -22,8 +22,5 @@ gunicorn>=21.2.0
 whitenoise>=6.5.0  # for serving static files
 psycopg2>=2.9.9    # for PostgreSQL support
 
-# Logging
-logging>=0.5.1.2
-
 # Other utilities
-python-venv>=3.0.0
+venv>=0.2.0
