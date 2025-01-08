@@ -46,7 +46,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'backend.urls'
+ROOT_URLCONF = 'crud.urls'
 
 TEMPLATES = [
     {
@@ -64,7 +64,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'backend.wsgi.application'
+WSGI_APPLICATION = 'crud.wsgi.application'
 
 
 # Database
@@ -142,9 +142,9 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 
-ROOT_URLCONF = 'backend.urls'
+ROOT_URLCONF = 'crud.urls'
 
-WSGI_APPLICATION = 'backend.wsgi.application'
+WSGI_APPLICATION = 'crud.wsgi.application'
 
 GOOGLE_API_KEY=os.getenv("AIzaSyDEO09Xsqre5_b3wM5tSk5nagRGF5ScJAM")
 
