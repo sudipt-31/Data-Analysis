@@ -30,19 +30,19 @@ jobs:
       
       - name: Install dependencies
         run: |
-          cd backend
+          # cd backend
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
       - name: Collect static files
         run: |
-          cd backend
+          # cd backend
           python manage.py collectstatic --noinput
       # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
       - name: Zip artifact for deployment
         run: |
-          cd backend
+          # cd backend
           zip release.zip ./* -r
 
       - name: Upload artifact for deployment jobs
@@ -50,7 +50,7 @@ jobs:
         with:
           name: python-app
           path: |
-            backend/release.zip
+            ./release.zip
             !venv/
 
   deploy:
