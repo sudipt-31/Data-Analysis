@@ -21,6 +21,3 @@ python-dotenv>=1.0.0
 gunicorn>=21.2.0
 whitenoise>=6.5.0  # for serving static files
 psycopg2>=2.9.9    # for PostgreSQL support
-
-# Other utilities
-venv>=0.2.0
