@@ -30,9 +30,10 @@ jobs:
       - name: Create deployment package
         run: |
           cd backend
+          # Copy requirements.txt into backend directory
+          cp ../requirements.txt .
+          # Zip everything in the backend directory
           zip -r ../deploy.zip .
-          cd ..
-          zip -r deploy.zip requirements.txt
           
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
@@ -41,6 +42,7 @@ jobs:
           path: deploy.zip
 
   deploy:
+    # Rest of the deploy job remains the same
     runs-on: ubuntu-latest
     needs: build
     environment:
