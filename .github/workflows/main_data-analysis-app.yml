@@ -30,7 +30,7 @@ jobs:
       
       - name: Install dependencies
         run: |
-          # cd backend
+          cd backend
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
@@ -42,7 +42,7 @@ jobs:
 
       - name: Zip artifact for deployment
         run: |
-          # cd backend
+          cd backend
           zip release.zip ./* -r
 
       - name: Upload artifact for deployment jobs
@@ -50,7 +50,7 @@ jobs:
         with:
           name: python-app
           path: |
-            ./release.zip
+            backend/release.zip
             !venv/
 
   deploy:
