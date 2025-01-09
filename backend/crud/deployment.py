@@ -8,7 +8,8 @@ ALLOWED_HOSTS = [
     os.environ.get('WEBSITE_HOSTNAME', ''),
     '.azurewebsites.net',
     'localhost',
-    '127.0.0.1'
+    '127.0.0.1',
+    '*'
 ]
 
 
