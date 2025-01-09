@@ -2,8 +2,22 @@ from .settings import *
 import os
 
 DEBUG = False
-ALLOWED_HOSTS = [os.environ['WEBSITE_HOSTNAME']]
-CSRF_TRUSTED_ORIGINS = ['https://'+os.environ['WEBSITE_HOSTNAME']]
+
+GOOGLE_API_KEY = os.environ['GOOGLE_API_KEY']
+ALLOWED_HOSTS = [
+    os.environ.get('WEBSITE_HOSTNAME', ''),
+    '.azurewebsites.net',
+    'localhost',
+    '127.0.0.1'
+]
+
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://' + os.environ.get('WEBSITE_HOSTNAME', ''),
+    'https://*.azurewebsites.net'
+]
+
+
 SECRET_KEY = os.environ['MY_SECRET_KEY']
 
 MIDDLEWARE = [
