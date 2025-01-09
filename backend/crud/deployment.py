@@ -35,7 +35,7 @@ MIDDLEWARE = [
 
 CORS_ALLOWED_ORIGINS = [
     'https://proud-glacier-0f0c54c0f.4.azurestaticapps.net',
-    'localhost:5173', 
+    # 'localhost:5173', 
 ]
 
 
