@@ -206,71 +206,58 @@ def clean_column_names(headers):
 
 
 def restructure_excel_sheet(uploaded_file):
-    """Restructure and clean Excel sheet data, ensuring the first valid row becomes column headers.""" 
+    """Restructure and clean Excel sheet data with enhanced table detection."""
     try:
-        # Read file bytes
         file_bytes = uploaded_file.read()
         excel_bytes = io.BytesIO(file_bytes)
         
-        # Handle Excel files
+        cleaned_dfs = {}
+        
         if uploaded_file.name.endswith(('.xlsx', '.xls')):
             excel_file = pd.ExcelFile(excel_bytes)
             sheets = excel_file.sheet_names
             
-            cleaned_dfs = {}
             for sheet in sheets:
-                # Read the sheet without header to inspect
                 df = pd.read_excel(excel_bytes, sheet_name=sheet, header=None)
-                
-                # Skip empty sheets
-                if df.empty or df.dropna(how='all').empty:
+                if df.empty:
                     continue
                 
-                # Find the first row with valid data
-                first_valid_row_index = df.apply(lambda x: x.notna().any(), axis=1).idxmax()
-                headers = df.iloc[first_valid_row_index].fillna("Unnamed_Column").tolist()
-                cleaned_headers = clean_column_names(headers)
+                clean_sheet_name = re.sub(r'[^\w\s]', '_', sheet)
+                clean_sheet_name = re.sub(r'\s+', '_', clean_sheet_name)
                 
-                # Create new DataFrame with cleaned headers and remaining data
-                cleaned_df = pd.DataFrame(df.iloc[first_valid_row_index + 1:].values, columns=cleaned_headers)
+                table_sections = find_tables_in_dataframe(df, sheet_name=clean_sheet_name)
                 
-                # Remove completely empty rows and columns
-                cleaned_df = cleaned_df.dropna(how='all')
-                cleaned_df = cleaned_df.dropna(axis=1, how='all')
-                
-                if not cleaned_df.empty:
-                    cleaned_dfs[sheet] = cleaned_df
-            
-            return cleaned_dfs if cleaned_dfs else None
-            
-        # Handle CSV files
+                for table_info in table_sections:
+                    processed_df = process_single_table(df, table_info)
+                    if processed_df is not None and not processed_df.empty:
+                        table_name = table_info['name'].lower()
+                        print(f"Processing table: {table_name} with {len(processed_df)} rows and {len(processed_df.columns)} columns")
+                        cleaned_dfs[table_name] = processed_df
+                        
         elif uploaded_file.name.endswith('.csv'):
             df = pd.read_csv(io.StringIO(file_bytes.decode('utf-8')), header=None)
-            
-            if df.empty or df.dropna(how='all').empty:
-                return None
+            if not df.empty:
+                csv_name = os.path.splitext(uploaded_file.name)[0]
+                clean_csv_name = re.sub(r'[^\w\s]', '_', csv_name)
+                clean_csv_name = re.sub(r'\s+', '_', clean_csv_name)
                 
-            # Find the first row with valid data
-            first_valid_row_index = df.apply(lambda x: x.notna().any(), axis=1).idxmax()
-            headers = df.iloc[first_valid_row_index].fillna("Unnamed_Column").tolist()
-            cleaned_headers = clean_column_names(headers)
-            
-            # Create new DataFrame with cleaned headers and remaining data
-            cleaned_df = pd.DataFrame(df.iloc[first_valid_row_index + 1:].values, columns=cleaned_headers)
-            
-            # Remove completely empty rows and columns
-            cleaned_df = cleaned_df.dropna(how='all')
-            cleaned_df = cleaned_df.dropna(axis=1, how='all')
-            
-            return cleaned_df if not cleaned_df.empty else None
-            
-        return None
+                table_sections = find_tables_in_dataframe(df, sheet_name=clean_csv_name)
+                
+                for table_info in table_sections:
+                    processed_df = process_single_table(df, table_info)
+                    if processed_df is not None and not processed_df.empty:
+                        table_name = table_info['name'].lower()
+                        print(f"Processing table: {table_name} with {len(processed_df)} rows and {len(processed_df.columns)} columns")
+                        cleaned_dfs[table_name] = processed_df
+        
+        return cleaned_dfs if cleaned_dfs else None
         
     except Exception as e:
-        # Raise exception instead of using Streamlit error
-        raise Exception(f"Error processing file: {str(e)}")
+        print(f"Error processing file: {str(e)}")
+        return None
     finally:
         uploaded_file.seek(0)
+
 
 def generate_and_execute_query(user_question, schema_str, llm, db_uri):
     """
@@ -450,6 +437,114 @@ def clear_database_tables(engine):
         print(f"Error clearing database: {str(e)}")
         raise e
 
+def is_table_name_row(row):
+    """Check if a row contains only one non-empty cell that could be a table name."""
+    non_empty_values = row.dropna()
+    return len(non_empty_values) == 1
+
+def is_header_row(row):
+    """Check if a row could be a header row."""
+    non_empty_values = row.dropna()
+    return len(non_empty_values) > 1
+
+def process_single_table(df, table_info):
+    """Process a single table using the provided table information."""
+    try:
+        headers = df.iloc[table_info['header_row']].tolist()
+        cleaned_headers = clean_column_names(headers)
+        
+        start_idx = table_info['data_start']
+        end_idx = table_info['end']
+        data_df = df.iloc[start_idx:end_idx].copy()
+        
+        result_df = pd.DataFrame(data_df.values, columns=cleaned_headers)
+        result_df = result_df.dropna(how='all').dropna(axis=1, how='all')
+        
+        return result_df if not result_df.empty else None
+        
+    except Exception as e:
+        print(f"Error processing table section: {str(e)}")
+        return None
+
+def find_tables_in_dataframe(df, sheet_name="default"):
+    """Find multiple tables in a DataFrame with enhanced detection logic."""
+    tables = []
+    current_table = None
+    i = 0
+    table_counter = 1
+    
+    while i < len(df):
+        row = df.iloc[i]
+        
+        if row.isna().all():
+            if current_table is not None:
+                tables.append(current_table)
+                current_table = None
+            i += 1
+            continue
+        
+        if is_table_name_row(row):
+            original_table_name = str(row.dropna().iloc[0]).strip()
+            if original_table_name and isinstance(original_table_name, str):
+                table_name = f"{sheet_name}_{original_table_name}"
+            else:
+                table_name = f"{sheet_name}_table_{table_counter}"
+                table_counter += 1
+            
+            table_name = re.sub(r'[^\w\s]', '_', table_name)
+            table_name = re.sub(r'\s+', '_', table_name)
+            
+            header_idx = None
+            data_start_idx = None
+            
+            for j in range(i + 1, len(df)):
+                next_row = df.iloc[j]
+                if next_row.isna().all():
+                    break
+                if header_idx is None and is_header_row(next_row):
+                    header_idx = j
+                    data_start_idx = j + 1
+                    break
+            
+            if header_idx is not None:
+                if current_table is not None:
+                    tables.append(current_table)
+                
+                current_table = {
+                    'name': table_name,
+                    'start': header_idx,
+                    'data_start': data_start_idx,
+                    'header_row': header_idx,
+                    'end': None
+                }
+                i = data_start_idx
+                continue
+        
+        if current_table is None and is_header_row(row):
+            table_name = f"{sheet_name}_table_{table_counter}"
+            table_name = re.sub(r'[^\w\s]', '_', table_name)
+            table_name = re.sub(r'\s+', '_', table_name)
+            
+            current_table = {
+                'name': table_name,
+                'start': i,
+                'data_start': i + 1,
+                'header_row': i,
+                'end': None
+            }
+            table_counter += 1
+            i += 1
+            continue
+        
+        if current_table is not None:
+            current_table['end'] = i + 1
+        
+        i += 1
+    
+    if current_table is not None:
+        tables.append(current_table)
+    
+    return tables
 
 
 
