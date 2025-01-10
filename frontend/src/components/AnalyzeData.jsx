@@ -18,7 +18,7 @@ const AnalyzeData = () => {
     setError('');
 
     try {
-      const response = await fetch('http://nltosql-hxdwg2arhdhja4dt.canadacentral-01.azurewebsites.net/api/analysis/', {
+      const response = await fetch('https://nltosql-hxdwg2arhdhja4dt.canadacentral-01.azurewebsites.net/api/analysis/', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -45,7 +45,7 @@ const AnalyzeData = () => {
     if (!results?.results) return;
   
     try {
-      const response = await fetch('http://nltosql-hxdwg2arhdhja4dt.canadacentral-01.azurewebsites.net/api/save-results/', {
+      const response = await fetch('https://nltosql-hxdwg2arhdhja4dt.canadacentral-01.azurewebsites.net/api/save-results/', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',

@@ -35,7 +35,7 @@ const UploadData = () => {
     formData.append('file', file);
 
     try {
-      const response = await fetch('http://nltosql-hxdwg2arhdhja4dt.canadacentral-01.azurewebsites.net/api/analysis/', {
+      const response = await fetch('https://nltosql-hxdwg2arhdhja4dt.canadacentral-01.azurewebsites.net/api/analysis/', {
         method: 'POST',
         body: formData,
       });
