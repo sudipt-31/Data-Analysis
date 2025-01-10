@@ -62,6 +62,7 @@ def setup_llm():
     except Exception as e:
         raise Exception(f"Error setting up LLM: {str(e)}")
 
+
 def get_prompt_template():
     """Get the prompt template with dynamic schema"""
     template = """

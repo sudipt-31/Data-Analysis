@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { AlertCircle, Save, Send } from 'lucide-react';
+import { AlertCircle, Save, Send, ChevronDown } from 'lucide-react';
 
 const AnalyzeData = () => {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState('');
+  const [isQueryExpanded, setIsQueryExpanded] = useState(true);
 
   const handleAnalysis = async (e) => {
     e.preventDefault();
@@ -56,15 +57,11 @@ const AnalyzeData = () => {
   
       if (!response.ok) throw new Error('Failed to download results');
   
-      // Get the blob from response
       const blob = await response.blob();
-      
-      // Create download link
       const downloadUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = downloadUrl;
       
-      // Get filename from Content-Disposition header or use default
       const contentDisposition = response.headers.get('Content-Disposition');
       const filename = contentDisposition
         ? contentDisposition.split('filename=')[1].replace(/"/g, '')
@@ -79,7 +76,6 @@ const AnalyzeData = () => {
       setError(err.message);
     }
   };
-
 
   return (
     <div className="flex w-full h-[calc(100vh-12rem)] bg-gray-800/50 rounded-xl overflow-hidden">
@@ -143,11 +139,28 @@ const AnalyzeData = () => {
 
             {results.query && (
               <div className="bg-gray-800 rounded-lg border border-gray-600 overflow-hidden">
-                <div className="px-4 py-3 bg-gray-700 border-b border-gray-600">
+                <button
+                  onClick={() => setIsQueryExpanded(!isQueryExpanded)}
+                  className="w-full px-4 py-3 bg-gray-700 flex justify-between items-center hover:bg-gray-600 transition-colors duration-200"
+                >
                   <h4 className="font-semibold text-white">Generated Query</h4>
-                </div>
-                <div className="p-4">
-                  <code className="block whitespace-pre-wrap text-blue-400 font-mono text-sm">{results.query}</code>
+                  <ChevronDown
+                    size={20}
+                    className={`text-white transform transition-transform duration-200 ${
+                      isQueryExpanded ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+                <div
+                  className={`transition-all duration-200 ${
+                    isQueryExpanded ? 'max-h-96' : 'max-h-0'
+                  } overflow-hidden`}
+                >
+                  <div className="p-4">
+                    <code className="block whitespace-pre-wrap text-blue-400 font-mono text-sm">
+                      {results.query}
+                    </code>
+                  </div>
                 </div>
               </div>
             )}
