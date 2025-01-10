@@ -203,8 +203,6 @@ def clean_column_names(headers):
     
     return cleaned_headers
 
-
-
 def restructure_excel_sheet(uploaded_file):
     """Restructure and clean Excel sheet data with enhanced table detection."""
     try:
@@ -401,8 +399,6 @@ def generate_and_execute_query(user_question, schema_str, llm, db_uri):
     finally:
         if 'engine' in locals():
             engine.dispose()
-
-
 
 def clear_database_tables(engine):
     """Clear all tables from the data_analysis database"""
