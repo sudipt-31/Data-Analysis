@@ -27,3 +27,5 @@ psycopg2==2.9.10    # for PostgreSQL support
 python-dateutil==2.9.0.post0
 
 openpyxl>=3.1.0
+
+uvicorn>=0.15.0
