@@ -66,7 +66,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'crud.wsgi.application'
 
-
+# "testing"
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
